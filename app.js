@@ -2,8 +2,9 @@ var Sequelize = require('sequelize');
 var db = new Sequelize(process.env.DATABASE_URL);
 
 var User = db.define('user', {
-  email: Sequelize.STRING,
-  token: Sequelize.STRING
+  name: Sequelize.STRING,
+  googleAccessToken: Sequelize.STRING,
+  googleUserId: Sequelize.STRING
 });
 
 if(process.env.SYNC)
@@ -65,18 +66,24 @@ if(process.env.NODE_ENV === 'development'){
     //now it will be our job to find or create a user with googles information
     if(!profile.emails.length)//i need an email
       return done('no emails found', null);
-    User.findOne({ where: {token: token} })
+    User.findOne({ where: {googleUserId: profile.id} })
       .then(function(user){
         if(user)
           return user;
         return User.create({
-          email: profile.emails[0].value, 
-          token: token}
+          name: `${profile.emails[0].value}-Google`, 
+          googleUserId: profile.id}
         );
       })
       .then(function(user){
+        //update access token
+        user.googleAccessToken = token;
+        return user.save();
+      })
+      .then(function(user){
         done(null, user); 
-      });
+      })
+      .catch((err)=> done(err, null));
   }));
 
 //root route- return user if you have one
